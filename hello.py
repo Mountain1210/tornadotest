@@ -10,9 +10,11 @@ import requests
 import json
 import datetime
 import time
-import urlparse
+# import urlparse #python2.7
 import sys, urllib
 import os.path
+import pymysql
+# import torndb
 
 
 
@@ -20,7 +22,11 @@ import os.path
 from tornado.options import define, options
 define("port", default=8000, help="run on the given port", type=int)
 
-
+db = pymysql.connect("localhost","root","root","ihome")
+cursor = db.cursor()
+cursor.execute("SELECT VERSION()")
+data = cursor.fetchone()
+print ("Database version : %s " % data)
 
 # client_key = '<YOUR-KEY-HERE>'
 # client_secret = '<YOUR-SECRET-HERE>'
@@ -50,7 +56,24 @@ class DefaultHandler(tornado.web.RequestHandler):
     """主路由处理类"""
     def get(self):
         greeting = self.get_argument('greeting', 'Hello')
+        ret = None
         """对应http的get请求方式"""
+        # self.write(greeting + ', friendly user!')
+        sql = "select ai_area_id,ai_name from ih_area_info;"
+        cursor.execute(sql)
+        ret =  cursor.fetchall()
+        print(ret)
+        data = []
+        for row in ret:
+            print(row[0])
+            print(row[1])
+            d = {
+                "area_id": row[0],
+                "name": row[1]
+            }
+            data.append(d)
+
+        print(data)
         self.write(greeting + ', friendly user!')
 
     def write_error(self, status_code, **kwargs):
@@ -204,6 +227,13 @@ if __name__ == "__main__":
         "cookie_secret": "bZJc2sWbQLKos6GkHn/VB9oXwQt8S0R0kRvJ5/xJ89E=",
         "xsrf_cookies": True
     }
+    mysql_options = dict(
+        host="localhost",
+        database="ihome",
+        user="root",
+        password="root"
+    )
+    # self.db = torndb.Connection(**mysql_options)
     app = tornado.web.Application(
         handlers=[
             (r"/default", DefaultHandler),
