@@ -1,91 +1,143 @@
+# FileName : DBHandle.py
+# Author   : Adil
+# DateTime : 2018/11/29 2:03 PM
+# SoftWare : PyCharm
+
 import pymysql
-from pymysql.cursors import DictCursor
+
+# username : adil
+# password : helloyyj
 
 
-class DBHandler(object):
-    """
-    初始化数据库
-    """
-    # 也可以继承 Connection 这里没有选择继承
-    def __init__(self,
-                 host=None,  # 连接名
-                 port=3306,  # 端口
-                 user=None,  # 用户名
-                 password=None,  # 密码
-                 charset=None,  # 不能写utf-8 在MySQL里面写utf-8会报错
-                 database=None,  # 数据库库名
-                 cursorclass=DictCursor,
-                 **kwargs):
-        self.connect = pymysql.connect(
-            host=host,  # 连接名
-            port=port,  # 端口
-            user=user,  # 用户名
-            password=password,  # 密码
-            charset=charset,  # 不能写utf-8 在MySQL里面写utf-8会报错
-            database=database,  # 数据库库名
-            cursorclass=cursorclass,  # 数据转换成字典格式
-            **kwargs
-        )
-        # 创建游标对象  **主要**
-        self.cursor = self.connect.cursor()
+class DataBaseHandle(object):
+    ''' 定义一个 MySQL 操作类'''
 
-    def query_one(self, query, args=None):
-        """
-        查询数据库一条数据
-        :param query: 执行MySQL语句
-        :param args: 与查询语句一起传递的参数(给语句传参) 元组、列表和字典
-        """
-        self.cursor.execute(query, args)
-        # 将更改提交到数据库
-        self.connect.commit()
-        return self.cursor.fetchone()
 
-    def query_all(self, query, args=None):
-        """
-        查询数据库所有数据
-        :param query: 执行MySQL语句
-        :param args: 与查询语句一起传递的参数(给语句传参) 元组、列表和字典
-        """
-        self.cursor.execute(query, args)
-        # 将更改提交到数据库
-        self.connect.commit()
-        return self.cursor.fetchall()
+    def __init__(self,host,username,password,database,port):
+        '''初始化数据库信息并创建数据库连接'''
+        # 下面的赋值其实可以省略，connect 时 直接使用形参即可
+        self.host = host
+        self.username = username
+        self.password = password
+        self.database = database
+        self.port = port
+        self.db = pymysql.connect(self.host,self.username,self.password,self.database,self.port,charset='utf8')
 
-    def query(self, query, args=None, one=True):
-        """
-        主体查询数据
-        :param query: 执行MySQL语句
-        :param args: 与查询语句一起传递的参数(给语句传参) 元组、列表和字典
-        :param one: one是True 时候执行query_one, 否则执行query_all
-        """
-        if one:
-            return self.query_one(query, args)
-        return self.query_all(query, args)
 
-    def close(self):
-        """
-        关闭
-        :return:
-        """
-        # 关闭游标
-        self.cursor.close()
-        # 断开数据库连接
-        self.connect.close()
+
+    #  这里 注释连接的方法，是为了 实例化对象时，就创建连接。不许要单独处理连接了。
+    #
+    # def connDataBase(self):
+    #     ''' 数据库连接 '''
+    #
+    #     self.db = pymysql.connect(self.host,self.username,self.password,self.port,self.database)
+    #
+    #     # self.cursor = self.db.cursor()
+    #
+    #     return self.db
+
+
+
+
+
+    def insertDB(self,sql):
+        ''' 插入数据库操作 '''
+
+        self.cursor = self.db.cursor()
+
+        try:
+            # 执行sql
+            self.cursor.execute(sql)
+            # tt = self.cursor.execute(sql)  # 返回 插入数据 条数 可以根据 返回值 判定处理结果
+            # print(tt)
+            self.db.commit()
+        except:
+            # 发生错误时回滚
+            self.db.rollback()
+        finally:
+            self.cursor.close()
+
+
+
+    def deleteDB(self,sql):
+        ''' 操作数据库数据删除 '''
+        self.cursor = self.db.cursor()
+
+        try:
+            # 执行sql
+            self.cursor.execute(sql)
+            # tt = self.cursor.execute(sql) # 返回 删除数据 条数 可以根据 返回值 判定处理结果
+            # print(tt)
+            self.db.commit()
+        except:
+            # 发生错误时回滚
+            self.db.rollback()
+        finally:
+            self.cursor.close()
+
+
+
+
+
+    def updateDb(self,sql):
+        ''' 更新数据库操作 '''
+
+        self.cursor = self.db.cursor()
+
+        try:
+            # 执行sql
+            self.cursor.execute(sql)
+            # tt = self.cursor.execute(sql) # 返回 更新数据 条数 可以根据 返回值 判定处理结果
+            # print(tt)
+            self.db.commit()
+        except:
+            # 发生错误时回滚
+            self.db.rollback()
+        finally:
+            self.cursor.close()
+
+
+
+
+
+    def selectDb(self,sql):
+        ''' 数据库查询 '''
+        self.cursor = self.db.cursor()
+        try:
+            self.cursor.execute(sql) # 返回 查询数据 条数 可以根据 返回值 判定处理结果
+
+            data = self.cursor.fetchall() # 返回所有记录列表
+
+            print(data)
+
+            # 结果遍历
+            for row in data:
+                sid = row[0]
+                name = row[1]
+                # 遍历打印结果
+                print('sid = %s,  name = %s'%(sid,name))
+        except:
+            print('Error: unable to fecth data')
+        finally:
+            self.cursor.close()
+
+
+    def closeDb(self):
+        ''' 数据库连接关闭 '''
+        self.db.close()
+
 
 
 if __name__ == '__main__':
-    db = DBHandler(
-        host='127.0.0.1',  # 连接名
-        port=3306,  # 端口
-        user='root',  # 用户名
-        password='root',  # 密码
-        charset='utf8',  # 不能写utf-8 在MySQL里面写utf-8会报错
-        database='pymysql_test'  # 数据库库名
-    )
-    # 查询语句
-    sql = 'select * from authors'
-    sql1 = "select * from authors where authorId = %s;"
-    print(db.query(sql, one=False))
-    print(db.query(query=sql1, args=[1]))
-　　# 关闭连接
-　　db.close()
+
+    DbHandle = DataBaseHandle('127.0.0.1','adil','helloyyj','AdilTest',3306)
+
+    DbHandle.insertDB('insert into test(name) values ("%s")'%('FuHongXue'))
+    DbHandle.insertDB('insert into test(name) values ("%s")'%('FuHongXue'))
+    DbHandle.selectDb('select * from test')
+    DbHandle.updateDb('update test set name = "%s" where sid = "%d"' %('YeKai',22))
+    DbHandle.selectDb('select * from test')
+    DbHandle.insertDB('insert into test(name) values ("%s")'%('LiXunHuan'))
+    DbHandle.deleteDB('delete from test where sid > "%d"' %(25))
+    DbHandle.selectDb('select * from test')
+    DbHandle.closeDb()
