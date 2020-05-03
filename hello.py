@@ -10,16 +10,29 @@ import requests
 import json
 import datetime
 import time
-import urlparse
-import sys, urllib
+# import urlparse
+import sys
+import urllib
 import os.path
-
-
+from utils import DBHandler as DataBaseHandle
 
 
 from tornado.options import define, options
 define("port", default=8000, help="run on the given port", type=int)
 
+
+# DbHandle = DataBaseHandle.DataBaseHandle('127.0.0.1','root','root','ihome',3306)
+# cc=DbHandle.selectDb('select ai_name from ih_area_info')
+# # DbHandle.selectDb('select * from test')
+# print("=======================")
+# print(cc)
+
+# print("=======================")
+# DbHandle.closeDb()
+
+DbHandle = DataBaseHandle.MysqlTools({'host': '127.0.0.1', 'user': 'root','passwd': 'root','db': 'ihome','port': 3306},"stream")
+sAll = DbHandle.select_all("select * from ih_area_info")
+print(sAll)
 
 
 # client_key = '<YOUR-KEY-HERE>'
@@ -48,6 +61,7 @@ define("port", default=8000, help="run on the given port", type=int)
 
 class DefaultHandler(tornado.web.RequestHandler):
     """主路由处理类"""
+
     def get(self):
         greeting = self.get_argument('greeting', 'Hello')
         """对应http的get请求方式"""
@@ -56,19 +70,23 @@ class DefaultHandler(tornado.web.RequestHandler):
     def write_error(self, status_code, **kwargs):
         self.write("Gosh darnit, user! You caused a %d error." % status_code)
 
+
 class WrapHandler(tornado.web.RequestHandler):
     def post(self):
         text = self.get_argument('text')
         width = self.get_argument('width', 40)
         self.write(textwrap.fill(text, int(width)))
 
+
 class ReverseHandler(tornado.web.RequestHandler):
     def get(self, input):
         self.write(input[::-1])
 
 # matched with (r"/widget/(\d+)", WidgetHandler2)
+
+
 class WidgetHandler2(tornado.web.RequestHandler):
-    def get(self,widget_id):
+    def get(self, widget_id):
         # widget = retrieve_from_db(widget_id)
         self.write(widget_id)
 
@@ -77,9 +95,11 @@ class WidgetHandler2(tornado.web.RequestHandler):
         widget['foo'] = self.get_argument('foo')
         save_to_db(widget)
 
+
 class IndexHandler(tornado.web.RequestHandler):
     def get(self):
         self.render('index.html')
+
 
 class PoemPageHandler(tornado.web.RequestHandler):
     def post(self):
@@ -88,23 +108,28 @@ class PoemPageHandler(tornado.web.RequestHandler):
         verb = self.get_argument('verb')
         noun3 = self.get_argument('noun3')
         self.render('poem.html', roads=noun1, wood=noun2, made=verb,
-                difference=noun3)
+                    difference=noun3)
+
+
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
         self.render(
             "in.html",
             page_title="测试账号",
-            header_text = "Header goes here",
-            footer_text = "Footer goes here"
+            header_text="Header goes here",
+            footer_text="Footer goes here"
         )
+
 
 class HelloHandler(tornado.web.RequestHandler):
     def get(self):
         self.render('hello.html')
 
+
 class HelloModule(tornado.web.UIModule):
     def render(self):
         return '<h1>Hello, world!</h1>'
+
 
 class BookModule(tornado.web.UIModule):
     def render(self, book):
@@ -120,31 +145,31 @@ class BookModule(tornado.web.UIModule):
         return "/static/js/a.js"
 
 
-
 class RecommendedHandler(tornado.web.RequestHandler):
     def get(self):
         self.render(
             "recommended.html",
             page_title="Burt's Books | Recommended Reading",
             header_text="Recommended Reading",
-            footer_text = "Footer goes here",
+            footer_text="Footer goes here",
             books=[{
-                    "title":"Programming Collective Intelligence",
-                    "subtitle": "Building Smart Web 2.0 Applications",
-                    "image":"/static/images/collective_intelligence.gif",
-                    "author": "Toby Segaran",
-                    "date_added":1310248056,
-                    "date_released": "August 2007",
-                    "isbn":"978-0-596-52932-1",
-                    "description":"<p>This fascinating book demonstrates how you "
+                "title": "Programming Collective Intelligence",
+                "subtitle": "Building Smart Web 2.0 Applications",
+                "image": "/static/images/collective_intelligence.gif",
+                "author": "Toby Segaran",
+                "date_added": 1310248056,
+                "date_released": "August 2007",
+                "isbn": "978-0-596-52932-1",
+                "description": "<p>This fascinating book demonstrates how you "
                         "can build web applications to mine the enormous amount of data created by people "
                         "on the Internet. With the sophisticated algorithms in this book, you can write "
                         "smart programs to access interesting datasets from other web sites, collect data "
                         "from users of your own applications, and analyze and understand the data once "
                         "you've found it.</p>"
-                }
+            }
             ]
         )
+
 
 class SyncHandler(tornado.web.RequestHandler):
     def get(self):
@@ -177,6 +202,7 @@ class SyncHandler(tornado.web.RequestHandler):
         <div style="font-size: 24px">tweets per second</div>
         </div>""" % (3000, 400))
 
+
 class CookHandler(tornado.web.RequestHandler):
     def get(self):
         cookie = self.get_secure_cookie("count")
@@ -190,13 +216,14 @@ class CookHandler(tornado.web.RequestHandler):
         # self.set_secure_cookie('cookie_test7','jiami') #设置一个加密的cookie,但是必须在下面的application里面添加cookie_secret = 'test'，才可以
         countString = "1 time" if count == 1 else "%d times" % count
 
-        self.set_secure_cookie("count", str(count),expires=time.time() + 60)
+        self.set_secure_cookie("count", str(count), expires=time.time() + 60)
 
         self.write(
             '<html><head><title>Cookie Counter</title></head>'
-            '<body><h1>You’ve viewed this page %s times.</h1>' % countString + 
+            '<body><h1>You’ve viewed this page %s times.</h1>' % countString +
             '</body></html>'
         )
+
 
 if __name__ == "__main__":
     tornado.options.parse_command_line()
@@ -220,7 +247,7 @@ if __name__ == "__main__":
         ],
         template_path=os.path.join(os.path.dirname(__file__), "templates"),
         static_path=os.path.join(os.path.dirname(__file__), "static"),
-        ui_modules=[{'Book': BookModule},{'Hello': HelloModule}],
+        ui_modules=[{'Book': BookModule}, {'Hello': HelloModule}],
         **settings
     )
     http_server = tornado.httpserver.HTTPServer(app)

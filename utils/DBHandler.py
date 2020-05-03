@@ -1,143 +1,121 @@
-# FileName : DBHandle.py
-# Author   : Adil
-# DateTime : 2018/11/29 2:03 PM
-# SoftWare : PyCharm
-
-import pymysql
-
-# username : adil
-# password : helloyyj
+try:
+    import pymysql
+except:
+    import MySQLdb as pymysql
+from pprint import pprint
 
 
-class DataBaseHandle(object):
-    ''' 定义一个 MySQL 操作类'''
+class MysqlTools():
+    '''创建mysql实例, 并提供查询,创建语句等一系列方法'''
 
+    def __init__(self, db_config, type, auto_commit=1000, **kwargs):
+        '''初始化,指定游标类型,自动提交数量'''
+        self.db_config = db_config
+        self.type = type
+        self.auto_commit = auto_commit
+        self.num = 0
+        self._fd_dict = {}
+        self._conn, self._curs = self._get_conn_curs(
+            db_config=self.db_config, type=self.type)
 
-    def __init__(self,host,username,password,database,port):
-        '''初始化数据库信息并创建数据库连接'''
-        # 下面的赋值其实可以省略，connect 时 直接使用形参即可
-        self.host = host
-        self.username = username
-        self.password = password
-        self.database = database
-        self.port = port
-        self.db = pymysql.connect(self.host,self.username,self.password,self.database,self.port,charset='utf8')
+    def _get_conn(self, dbconfig_dict):
+        conn = pymysql.connect(**dbconfig_dict)
+        return conn
 
+    def _get_cursor(self, conn, type='stream'):
+        if type == 'stream':
+            # 返回流式游标,查询大量数据时不占用内存(返回数据形式是元组)
+            return conn.cursor(pymysql.cursors.SSCursor)
+        elif type == 'dict':
+            # 返回字典形式游标,查询出的数据以字典形式返回
+            return conn.cursor(pymysql.cursors.DictCursor)
+        elif type == 'default':
+            return conn.cursor()
+        else:
+            raise Exception("cursor type error")
 
+    def _get_conn_curs(self, db_config, type='stream'):
 
-    #  这里 注释连接的方法，是为了 实例化对象时，就创建连接。不许要单独处理连接了。
-    #
-    # def connDataBase(self):
-    #     ''' 数据库连接 '''
-    #
-    #     self.db = pymysql.connect(self.host,self.username,self.password,self.port,self.database)
-    #
-    #     # self.cursor = self.db.cursor()
-    #
-    #     return self.db
+        conn = self._get_conn(db_config)
+        curs = self._get_cursor(conn, type=type)
+        return conn, curs
 
-
-
-
-
-    def insertDB(self,sql):
-        ''' 插入数据库操作 '''
-
-        self.cursor = self.db.cursor()
-
+    def select_all(self, sql, **kwargs):
+        '''查询全部数据'''
         try:
-            # 执行sql
-            self.cursor.execute(sql)
-            # tt = self.cursor.execute(sql)  # 返回 插入数据 条数 可以根据 返回值 判定处理结果
-            # print(tt)
-            self.db.commit()
-        except:
-            # 发生错误时回滚
-            self.db.rollback()
-        finally:
-            self.cursor.close()
+            self._curs.execute(sql)
+        except Exception as e:
+            pprint(sql)
+            raise e
+        data = self._curs.fetchall()
+        return data
 
-
-
-    def deleteDB(self,sql):
-        ''' 操作数据库数据删除 '''
-        self.cursor = self.db.cursor()
-
+    def select_one(self, sql, **kwargs):
+        '''查询单条数据'''
         try:
-            # 执行sql
-            self.cursor.execute(sql)
-            # tt = self.cursor.execute(sql) # 返回 删除数据 条数 可以根据 返回值 判定处理结果
-            # print(tt)
-            self.db.commit()
-        except:
-            # 发生错误时回滚
-            self.db.rollback()
-        finally:
-            self.cursor.close()
+            self._curs.execute(sql)
+        except Exception as e:
+            pprint(sql)
+            raise e
+        data = self._curs.fetchone()
+        return data
 
+    def select_limit(self, sql, start, step):
+        '''limit查询'''
+        pass
 
+    def _get_fd(self, file, type='a'):
+        '''获取文件操作符'''
+        if file not in self._fd_dict:
+            fd = open(file, type)
+            self._fd_dict[file] = fd
+        else:
+            fd = self._fd_dict.get(file)
+        return fd
 
+    def _write(self, fd, sql):
+        fd.write(sql)
+        fd.write('\n')
 
-
-    def updateDb(self,sql):
-        ''' 更新数据库操作 '''
-
-        self.cursor = self.db.cursor()
-
+    def execute_sql(self, sql, commit=False, to_file=False):
+        '''执行sql语句'''
         try:
-            # 执行sql
-            self.cursor.execute(sql)
-            # tt = self.cursor.execute(sql) # 返回 更新数据 条数 可以根据 返回值 判定处理结果
-            # print(tt)
-            self.db.commit()
-        except:
-            # 发生错误时回滚
-            self.db.rollback()
-        finally:
-            self.cursor.close()
+            self._curs.execute(sql)
+            self.num += 1
+            if to_file:
+                fd = self._get_fd(to_file)
+                self._write(fd, sql)
+        except Exception as e:
+            pprint(sql)
+            raise e
+        if commit:
+            self._conn.commit()
+        else:
+            if self.num % self.auto_commit == 0:
+                self.commit_sql()
 
+    def commit_sql(self):
+        self._conn.commit()
+        pprint(u"提交缓存, 当前计数: {}".format(self.num))
 
-
-
-
-    def selectDb(self,sql):
-        ''' 数据库查询 '''
-        self.cursor = self.db.cursor()
-        try:
-            self.cursor.execute(sql) # 返回 查询数据 条数 可以根据 返回值 判定处理结果
-
-            data = self.cursor.fetchall() # 返回所有记录列表
-
-            print(data)
-
-            # 结果遍历
-            for row in data:
-                sid = row[0]
-                name = row[1]
-                # 遍历打印结果
-                print('sid = %s,  name = %s'%(sid,name))
-        except:
-            print('Error: unable to fecth data')
-        finally:
-            self.cursor.close()
-
-
-    def closeDb(self):
-        ''' 数据库连接关闭 '''
-        self.db.close()
-
-
-
-if __name__ == '__main__':
-
-    DbHandle = DataBaseHandle('127.0.0.1','adil','helloyyj','AdilTest',3306)
-
-    DbHandle.insertDB('insert into test(name) values ("%s")'%('FuHongXue'))
-    DbHandle.insertDB('insert into test(name) values ("%s")'%('FuHongXue'))
-    DbHandle.selectDb('select * from test')
-    DbHandle.updateDb('update test set name = "%s" where sid = "%d"' %('YeKai',22))
-    DbHandle.selectDb('select * from test')
-    DbHandle.insertDB('insert into test(name) values ("%s")'%('LiXunHuan'))
-    DbHandle.deleteDB('delete from test where sid > "%d"' %(25))
-    DbHandle.selectDb('select * from test')
-    DbHandle.closeDb()
+    def get_insert_sql(self, table, dict):
+        '''获取sql插入语句'''
+        fields = '`'+'`,`'.join(dict.keys())+'`'
+        values = []
+        for k in dict.keys():
+            v = dict[k]
+            if type(v) not in (int, float, str):
+                if not v:
+                    values.append('')
+                else:
+                    s = u'值错误, key: {}, value: {}, type: {}'.format(
+                        k, v, type(v))
+                    raise Exception(s)
+            if v == 'now()':
+                values.append(v)
+            elif type(v) is str:
+                values.append("'{}'".format(v.replace('\\', '\\\\')))
+            else:
+                values.append('{}'.format(v))
+        value_str = ','.join(values)
+        return 'INSERT INTO `{}` ({}) VALUE ({})'.format(table, fields, value_str)
